@@ -97,7 +97,7 @@ class SGDSolver():
 
 """ Training Process: You only need to modify nepoch, epsilon of training method,
 this is for autograding """
-model = SGDSolver('test/train.csv')
+model = SGDSolver('tests/train.csv')
 # Compute the time to do grid search on training
 start = time.time()
 model.training([10**-10, 10], [1, 1e10], 300, 0)
