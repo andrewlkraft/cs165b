@@ -100,6 +100,6 @@ this is for autograding """
 model = SGDSolver('tests/train.csv')
 # Compute the time to do grid search on training
 start = time.time()
-model.training([10**-10, 10], [1, 1e10], 300, 0)
+model.training([10**-10, 10], [1, 1e10], 300, 0.01)
 end = time.time()
-print('---RESULTS---\ntraining time:\t%s\nMODEL:\ntraining & validation mse:\t%s\nb:\t%s\nw:\n%s' % (end - start, model.mse, model.b, model.w))
+# print('---RESULTS---\ntraining time:\t%s\nMODEL:\ntraining & validation mse:\t%s\nb:\t%s\nw:\n%s' % (end - start, model.mse, model.b, model.w))
