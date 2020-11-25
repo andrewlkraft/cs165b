@@ -1,5 +1,6 @@
 import numpy as np
 from collections import Counter
+import time
 
 # Below is a class that implement the binary tree search. 
 # It shows how recursion is done in a typical binary tree structure. 
@@ -113,6 +114,7 @@ class CART(object):
         '''
         self.max_depth = float('inf') if max_depth is None else max_depth 
         self.tree = None
+        self.min_samples = 0
         ###############################
         # TODO: your implementation
         # Add anything you need
@@ -126,10 +128,108 @@ class CART(object):
             X: Feature vector of shape (N, D). N - number of training samples; D - number of features. np ndarray
             y: label vector of shape (N,). np ndarray
         '''
-        ###############################
-        # TODO: your implementation
-        ###############################
-        pass
+        def end_condition(node, depth):
+            if depth == 0:
+                return True
+            if node.n_samples < self.min_samples:
+                return True
+            if node.gini == 0:
+                return True
+            return False
+
+        def gini(y):
+            num = [0] * 3
+            for i in y:
+                num[i] += 1
+
+            impurity = 1
+            for j in num:
+                impurity -= (j / len(y))**2
+
+            return impurity
+
+        def split_feature(X, y, feature):
+            # start = time.time_ns()
+            vals = []
+            for sample in X:
+                if sample[feature] not in vals:
+                    vals.append(sample[feature])
+            list.sort(vals)
+
+            threshold = None
+            impurity = np.inf
+            for i in range(len(vals) - 1):
+                split = (vals[i] + vals[i+1]) / 2
+                left, right = list(), list()
+                for j in range(len(X)):
+                    if X[j][feature] > split:
+                        right.append(y[j])
+                    else:
+                        left.append(y[j])
+
+                weighted_gini = (len(left) * gini(left) + len(right) * gini(right)) / len(y)
+
+                if impurity > weighted_gini:
+                    impurity = weighted_gini
+                    threshold = split
+            # end = time.time_ns()
+            # print('gini:', (end - start) * 10**-9)
+            return impurity, threshold
+
+        def best_split(X, y):
+            # start = time.time_ns()
+            max_gain = 0
+            d = None
+            threshold = None
+            for i in range(11):
+                gain, split = split_feature(X, y, i)
+                if gain > max_gain:
+                    max_gain = gain
+                    d = i
+                    threshold = split
+            # end = time.time_ns()
+            # print('best_split:', (end - start) * 10**-9)
+            return d, threshold
+
+        def build_tree(X, y, depth):
+            # start = time.time_ns()
+            node = TreeNode(n_samples=len(y), gini=gini(y))
+            class_nums = [0] * 3
+            for i in y:
+                class_nums[i] += 1
+            node.label = 0
+            if class_nums[1] > node.label:
+                node.label = 1
+            if class_nums[2] > node.label:
+                node.label = 2
+            
+            if end_condition(node, depth):
+                node.is_leaf = True
+                return node
+
+            node.d, node.threshold = best_split(X, y)
+
+            if node.d is None or node.threshold is None:
+                node.is_leaf = True
+                return node
+
+            leftx, lefty, rightx, righty = list(), list(), list(), list()
+            for i in range(len(X)):
+                if X[i, node.d] > node.threshold:
+                    rightx.append(X[i])
+                    righty.append(y[i])
+                else:
+                    leftx.append(X[i])
+                    lefty.append(y[i])
+
+            node.l_node = build_tree(np.array(leftx), np.array(lefty), depth-1)
+            node.r_node = build_tree(np.array(rightx), np.array(righty), depth-1)
+
+            # end = time.time_ns()
+            # print('build_tree:', (end - start) * 10**-9)
+            return node
+
+        self.tree = build_tree(X, y, self.max_depth)
 
     def test(self, X_test):
         '''
@@ -139,11 +239,18 @@ class CART(object):
         Output:
             prediction: label vector of shape (N,). np array, dtype=int
         '''
-        ###############################
-        # TODO: your implementation
-        ###############################
-        pass
-
+        n = len(X_test)
+        prediction = np.empty((n,))
+        for i in range(n):
+            node = self.tree
+            while not node.is_leaf:
+                if X_test[i, node.d] > node.threshold:
+                    node = node.r_node
+                else:
+                    node = node.l_node
+            prediction[i] = node.label
+        
+        return prediction
 
     def visualize_tree(self):
         '''
@@ -208,11 +315,50 @@ def GridSearchCV(X, y, depth=[1, 40]):
     ###############################
     # TODO: your implementation
     ###############################
+    best_acc = 0
+
+    # build testing and training datasets for each kfold cross validation (UGLY)
+    x_train, y_train, x_test, y_test = list(), list(), list(), list()
+    for k in range(5):
+        kxtest, kytest, kxtrain, kytrain = list(), list(), list(), list()
+        for i in range(len(X)):
+            if i % 5 == k:
+                kxtest.append(X[i])
+                kytest.append(y[i])
+            else:
+                kxtrain.append(X[i])
+                kytrain.append(y[i])
+        x_train.append(np.array(kxtrain))
+        x_test.append(np.array(kxtest))
+        y_train.append(np.array(kytrain))
+        y_test.append(np.array(kytest))
+
+    grid = np.linspace(depth[0], depth[1], 40)
+
+    for i in grid:
+        for k in range(5):
+            print(i, k)
+            model = CART(max_depth=i)
+            model.train(x_train[k], y_train[k])
+
+            prediction = model.test(x_test[k])
+            correct = 0
+            for j in range(len(prediction)):
+                if prediction[j]==y_test[k][j]:
+                    correct+=1
+            acc = correct / len(y_test[k])
+            if acc > best_acc:
+                best_acc = acc
+                best_depth = i
+                best_tree = model   
+
+    best_tree.visualize_tree()
     return best_depth, best_acc, best_tree
 
 # main
 # NOTE: Do not change anything below
 X_train, y_train = load_data('winequality-red-train.npy')
 best_depth, best_acc, best_tree = GridSearchCV(X_train, y_train, [1, 40])
-print('Best depth from %5-fold cross validation: %d' % best_depth)
+print('Best depth from 5-fold cross validation: %d' % best_depth)
 print('Best validation accuracy: %.5f' % (best_acc))
+
