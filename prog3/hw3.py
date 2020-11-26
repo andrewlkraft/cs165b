@@ -182,9 +182,9 @@ class CART(object):
             # print('gini:', (end - start) * 10**-9)
             return impurity, threshold
 
-        def best_split(X, y):
+        def best_split(X, y, min_gini):
             # start = time.time_ns()
-            impurity = np.inf
+            impurity = min_gini
             d = None
             threshold = None
             for i in range(11):
@@ -213,7 +213,7 @@ class CART(object):
                 node.is_leaf = True
                 return node
 
-            node.d, node.threshold = best_split(X, y)
+            node.d, node.threshold = best_split(X, y, node.gini)
 
             if node.d is None or node.threshold is None:
                 node.is_leaf = True
