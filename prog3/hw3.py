@@ -115,11 +115,6 @@ class CART(object):
         self.max_depth = float('inf') if max_depth is None else max_depth 
         self.tree = None
         self.min_samples = 0
-        ###############################
-        # TODO: your implementation
-        # Add anything you need
-        ###############################
-        pass
 
     def train(self, X, y):
         '''
@@ -154,13 +149,15 @@ class CART(object):
             p = X[:,feature].argsort()
             sorted_X = X[p]
             sorted_y = y[p]
-            
+
             vals = []
             i = 0
             while i < n:
                 vals.append(sorted_X[i, feature])
-                while i < n and sorted_X[i, feature] == vals[-1]:
+                while sorted_X[i, feature] == vals[-1]:
                     i += 1
+                    if i == n:
+                        break
 
             impurity = np.inf
             threshold = None
@@ -170,7 +167,7 @@ class CART(object):
                 tmp_threshold = (vals[j] + vals[j+1]) / 2
                 while sorted_X[i, feature] < tmp_threshold:
                     i+=1
-                if i >= len(sorted_X) - 1:
+                if i == len(sorted_X):
                     break
 
                 tmp_impurity = (i / n) * gini(sorted_y[:i]) + (1 - i / n) * gini(sorted_y[i:])
@@ -200,14 +197,10 @@ class CART(object):
         def build_tree(X, y, depth):
             # start = time.time_ns()
             node = TreeNode(n_samples=len(y), gini=gini(y))
-            class_nums = [0] * 3
+            nums = [0] * 3
             for i in y:
-                class_nums[i] += 1
-            node.label = 0
-            if class_nums[1] > class_nums[0]:
-                node.label = 1
-            if class_nums[2] > class_nums[node.label]:
-                node.label = 2
+                nums[i] += 1
+            node.label = max(range(3), key=lambda i:nums[i])
             
             if end_condition(node, depth):
                 node.is_leaf = True
