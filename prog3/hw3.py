@@ -187,7 +187,7 @@ class CART(object):
             impurity = min_gini
             d = None
             threshold = None
-            for i in range(11):
+            for i in range(num_features):
                 tmp_impurity, tmp_threshold = split_feature(X, y, i)
                 if tmp_impurity < impurity:
                     impurity = tmp_impurity
@@ -204,9 +204,9 @@ class CART(object):
             for i in y:
                 class_nums[i] += 1
             node.label = 0
-            if class_nums[1] > node.label:
+            if class_nums[1] > class_nums[0]:
                 node.label = 1
-            if class_nums[2] > node.label:
+            if class_nums[2] > class_nums[node.label]:
                 node.label = 2
             
             if end_condition(node, depth):
@@ -235,6 +235,7 @@ class CART(object):
             # print('build_tree:', (end - start) * 10**-9)
             return node
 
+        num_features = len(X[0])
         self.tree = build_tree(X, y, self.max_depth)
 
     def test(self, X_test):
