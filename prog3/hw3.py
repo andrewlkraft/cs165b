@@ -150,43 +150,49 @@ class CART(object):
 
         def split_feature(X, y, feature):
             # start = time.time_ns()
+            n = len(y)
+            p = X[:,feature].argsort()
+            sorted_X = X[p]
+            sorted_y = y[p]
+            
             vals = []
-            for sample in X:
-                if sample[feature] not in vals:
-                    vals.append(sample[feature])
-            list.sort(vals)
+            i = 0
+            while i < n:
+                vals.append(sorted_X[i, feature])
+                while i < n and sorted_X[i, feature] == vals[-1]:
+                    i += 1
 
-            threshold = None
             impurity = np.inf
-            for i in range(len(vals) - 1):
-                split = (vals[i] + vals[i+1]) / 2
-                left, right = list(), list()
-                for j in range(len(X)):
-                    if X[j][feature] > split:
-                        right.append(y[j])
-                    else:
-                        left.append(y[j])
+            threshold = None
+            i = 0
 
-                weighted_gini = (len(left) * gini(left) + len(right) * gini(right)) / len(y)
+            for j in range(len(vals) - 1):
+                tmp_threshold = (vals[j] + vals[j+1]) / 2
+                while sorted_X[i, feature] < tmp_threshold:
+                    i+=1
+                if i >= len(sorted_X) - 1:
+                    break
 
-                if impurity > weighted_gini:
-                    impurity = weighted_gini
-                    threshold = split
+                tmp_impurity = (i / n) * gini(sorted_y[:i]) + (1 - i / n) * gini(sorted_y[i:])
+                if tmp_impurity < impurity:
+                    impurity = tmp_impurity
+                    threshold = tmp_threshold
+
             # end = time.time_ns()
             # print('gini:', (end - start) * 10**-9)
             return impurity, threshold
 
         def best_split(X, y):
             # start = time.time_ns()
-            max_gain = 0
+            impurity = np.inf
             d = None
             threshold = None
             for i in range(11):
-                gain, split = split_feature(X, y, i)
-                if gain > max_gain:
-                    max_gain = gain
+                tmp_impurity, tmp_threshold = split_feature(X, y, i)
+                if tmp_impurity < impurity:
+                    impurity = tmp_impurity
                     d = i
-                    threshold = split
+                    threshold = tmp_threshold
             # end = time.time_ns()
             # print('best_split:', (end - start) * 10**-9)
             return d, threshold
@@ -315,6 +321,8 @@ def GridSearchCV(X, y, depth=[1, 40]):
     ###############################
     # TODO: your implementation
     ###############################
+    start = time.time_ns()
+
     best_acc = 0
 
     # build testing and training datasets for each kfold cross validation (UGLY)
@@ -336,8 +344,8 @@ def GridSearchCV(X, y, depth=[1, 40]):
     grid = np.linspace(depth[0], depth[1], 40)
 
     for i in grid:
+        flag = time.time_ns()
         for k in range(5):
-            print(i, k)
             model = CART(max_depth=i)
             model.train(x_train[k], y_train[k])
 
@@ -350,9 +358,11 @@ def GridSearchCV(X, y, depth=[1, 40]):
             if acc > best_acc:
                 best_acc = acc
                 best_depth = i
-                best_tree = model   
+                best_tree = model
+        print('i = ',i,'elapsed =', (time.time_ns() - flag) * 10**-9)
 
-    best_tree.visualize_tree()
+    print('total time taken:', (time.time_ns() - start) * 10**-9)   
+
     return best_depth, best_acc, best_tree
 
 # main
