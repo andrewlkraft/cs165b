@@ -321,7 +321,6 @@ def GridSearchCV(X, y, depth=[1, 40]):
     ###############################
     # TODO: your implementation
     ###############################
-    start = time.time_ns()
 
     best_acc = 0
 
@@ -344,7 +343,6 @@ def GridSearchCV(X, y, depth=[1, 40]):
     grid = np.linspace(depth[0], depth[1], 40)
 
     for i in grid:
-        flag = time.time_ns()
         for k in range(5):
             model = CART(max_depth=i)
             model.train(x_train[k], y_train[k])
@@ -359,9 +357,6 @@ def GridSearchCV(X, y, depth=[1, 40]):
                 best_acc = acc
                 best_depth = i
                 best_tree = model
-        print('i = ',i,'elapsed =', (time.time_ns() - flag) * 10**-9)
-
-    print('total time taken:', (time.time_ns() - start) * 10**-9)   
 
     return best_depth, best_acc, best_tree
 
