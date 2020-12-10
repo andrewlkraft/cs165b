@@ -65,7 +65,7 @@ class Boosting(object):
         '''
         if max_depth!=1 and max_depth!=2:
             raise ValueError('max_depth can only be 1 or 2!')
-        
+
         self.n_classifiers = n_classifiers
         self.max_depth = max_depth
         self.ensemble = []
@@ -81,23 +81,24 @@ class Boosting(object):
         N, D = np.shape(X)
         weights = np.ones(N)
         for i in range(self.n_classifiers):
-            # create decision stump
+            # train decision stump with weights
             clf = DecisionTreeClassifier(random_state=0, max_depth=self.max_depth, splitter='random')
-
             clf.fit(X, y, sample_weight=weights)
-            # calculate combined weights of incorrectly labeled samples
+
+            # calculate error rate
             incorrect = 0
             predicted = clf.predict(X)
             for j in range(N):
                 if predicted[j] != y[j]:
                     incorrect += weights[j]
             
+            # print('%s:\t%0.5f by weight' % (i, incorrect / N))
             weighting_constant = np.sqrt((N - incorrect) / incorrect)
 
             self.alpha.append(np.log(weighting_constant))
             self.ensemble.append(clf)
 
-            # update weight vector
+            # reweigh samples based on whether they are misclassified
             Z = 0
             for j in range(N):
                 if predicted[j] != y[j]:
@@ -109,6 +110,7 @@ class Boosting(object):
             # normalize weight vector so its sum is N
             for j in range(N):
                 weights[j] *= N / Z
+
     
     def test(self, X):
         '''
@@ -119,18 +121,15 @@ class Boosting(object):
             prediction: label vector of shape (N,). np array, dtype=int
         '''
         N, D = np.shape(X)
-        votes_by_class = np.empty((N,2))
-        for i in range(self.n_classifiers):
-            prediction_vector = self.ensemble[i].predict(X)
-            votes_by_class[:,1] += self.alpha[i] * prediction_vector
-            votes_by_class[:,0] += self.alpha[i] * (np.ones(N) - prediction_vector)
-
         prediction = np.empty(N)
-        for n in range(N):
-            if votes_by_class[n,1] > votes_by_class[n,0]:
-                prediction[n] = 1
+        for i in range(self.n_classifiers):
+            prediction += self.alpha[i] * (2 * self.ensemble[i].predict(X) - 1)
+        
+        for i in range(N):
+            if prediction[i] > 0:
+                prediction[i] = 1
             else:
-                prediction[n] = 0
+                prediction[i] = 0
 
         return prediction
     
