@@ -2,7 +2,9 @@ import numpy as np
 from sklearn.tree import DecisionTreeClassifier
 from scipy import stats
 import numbers
+import matplotlib.pyplot as plt
 
+random = np.random.default_rng()
 
 def load_data(filename):
     data = np.load(filename)
@@ -33,8 +35,8 @@ class Bagging(object):
         '''
         N, D = np.shape(X)
         for i in range(self.n_classifiers):
-            p = np.random.randint(low=0,high=N,size=N)
-            clf = DecisionTreeClassifier(random_state=0, max_depth=self.max_depth)
+            p = random.integers(low=0,high=N,size=N)
+            clf = DecisionTreeClassifier(max_depth=self.max_depth)
             clf.fit(X[p],y[p])
             self.ensemble.append(clf)
 
@@ -70,7 +72,7 @@ class Boosting(object):
         self.max_depth = max_depth
         self.ensemble = []
         self.alpha = []
-        
+
     def train(self, X, y):
         '''
         Train an adaboost.
@@ -79,40 +81,49 @@ class Boosting(object):
             y: label vector of shape (N,). np ndarray
         '''
         N, D = np.shape(X)
-        weights = np.ones(N)
+        # initialise weight vector to contain equal values which add up to 1
+        weights = np.ones(N) / N
+
         for i in range(self.n_classifiers):
             # train decision stump with weights
-            clf = DecisionTreeClassifier(random_state=0, max_depth=self.max_depth, splitter='random')
+            clf = DecisionTreeClassifier(max_depth=self.max_depth, splitter='random')
             clf.fit(X, y, sample_weight=weights)
 
             # calculate error rate
-            incorrect = 0
             predicted = clf.predict(X)
+            err = 0
             for j in range(N):
                 if predicted[j] != y[j]:
-                    incorrect += weights[j]
-            
-            # print('%s:\t%0.5f by weight' % (i, incorrect / N))
-            weighting_constant = np.sqrt((N - incorrect) / incorrect)
+                    err += weights[j]
 
-            self.alpha.append(np.log(weighting_constant))
+            # calculate and store alpha val
+            self.alpha.append(1/2*np.log((1 - err) / err))
             self.ensemble.append(clf)
 
             # reweigh samples based on whether they are misclassified
             Z = 0
             for j in range(N):
-                if predicted[j] != y[j]:
-                    weights[j] *= weighting_constant
-                else:
-                    weights[j] /= weighting_constant
                 Z += weights[j]
+                if predicted[j] != y[j]:
+                    weights[j] *= np.exp(self.alpha[i])
+                else:
+                    weights[j] *= np.exp(-1 * self.alpha[i])
 
             # normalize weight vector so its sum is N
             for j in range(N):
-                weights[j] *= N / Z
+                weights[j] *= 1 / Z
 
-    
-    def test(self, X):
+        plt.plot(self.alpha, 'bo', markersize=2)
+        plt.xlabel('classifier #')
+        plt.ylabel('alpha')
+        plt.title('value of alpha for each epoch')
+        plt.show()
+
+        total = sum(self.alpha)
+        for i in range(self.n_classifiers):
+            self.alpha[i] /= total
+
+    def test(self, X, y=None):
         '''
         Predict labels X. 
         Input:
@@ -121,18 +132,36 @@ class Boosting(object):
             prediction: label vector of shape (N,). np array, dtype=int
         '''
         N, D = np.shape(X)
-        prediction = np.empty(N)
+        prediction = np.zeros(N)
+
         for i in range(self.n_classifiers):
-            prediction += self.alpha[i] * (2 * self.ensemble[i].predict(X) - 1)
-        
+            prediction += self.alpha[i] * self.ensemble[i].predict(X)
+
+        if y is not None:
+            class1, class0 = list(), list()
+            for i in range(N):
+                if y[i]==0:
+                    class0.append(prediction[i])
+                else:
+                    class1.append(prediction[i])
+            
+
+            markersize = 2
+            plt.plot(class0, 'bo', label='class 0', markersize=markersize)
+            plt.plot(class1, 'ro', label='class 1', markersize=markersize)
+            plt.legend()
+            plt.xlabel('sample num')
+            plt.ylabel('weighted sum')
+            plt.show()
+
         for i in range(N):
-            if prediction[i] > 0:
+            if prediction[i] > .5:
                 prediction[i] = 1
             else:
                 prediction[i] = 0
 
         return prediction
-    
+
 # Please do not modify the variable names
 X_train, y_train = load_data('winequality-red-train-2class.npy')
 X_test, y_test = load_data('winequality-red-test-2class.npy')
